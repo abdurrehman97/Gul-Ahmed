@@ -46,7 +46,7 @@ class GulAhmedSpider(scrapy.Spider):
         product_strip = [p.strip() for p in proc_detail if p.strip()]
         convert_string = ''.join(product_strip).strip(':').strip().strip('"').strip()
         product_detail = w3lib.html.remove_tags(convert_string)
-        print('this is working')
+
         l.add_value('sku', sku_number)
         l.add_css('product_title', 'span.base::text')
         l.add_value('product_details', product_detail)
