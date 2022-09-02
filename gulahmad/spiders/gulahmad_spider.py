@@ -33,16 +33,16 @@ class GulAhmedSpider(scrapy.Spider):
         )
 
 
-    def parse_product_fields(self, responce):
+    def parse_product_fields(self, response):
 
-        l = ItemLoader(item=GulahmadItem(), response=responce)
+        l = ItemLoader(item=GulahmadItem(), response=response)
 
-        category = responce.css('.breadcrumbs span[itemprop="name"]::text').getall()
+        category = response.css('.breadcrumbs span[itemprop="name"]::text').getall()
 
-        space = responce.css('div[itemprop="sku"]::text').get()
+        space = response.css('div[itemprop="sku"]::text').get()
         sku_number = space.replace(' ', '')
 
-        proc_detail = responce.css('div.description div.value :not(style)::text').getall()
+        proc_detail = response.css('div.description div.value :not(style)::text').getall()
         product_strip = [p.strip() for p in proc_detail if p.strip()]
         convert_string = ''.join(product_strip).strip(':').strip().strip('"').strip()
         product_detail = w3lib.html.remove_tags(convert_string)
@@ -50,11 +50,11 @@ class GulAhmedSpider(scrapy.Spider):
         l.add_value('sku', sku_number)
         l.add_css('product_title', 'span.base::text')
         l.add_value('product_details', product_detail)
-        l.add_value('features', self.extract_features(responce))
+        l.add_value('features', self.extract_features(response))
         l.add_css('sale_price', 'span[data-price-type=finalPrice]::attr(data-price-amount)')
         l.add_css('old_price', 'span[data-price-type=oldPrice]::attr(data-price-amount)')
         l.add_value('category', category[1:-1], Join(' > '))
-        l.add_value('product_url', responce.url)
+        l.add_value('product_url', response.url)
 
         yield l.load_item()
 
