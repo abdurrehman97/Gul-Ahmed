@@ -34,20 +34,24 @@ class GulAhmedSpider(scrapy.Spider):
     def parse_product(self, response):
 
         loader = ItemLoader(item=GulahmadItem(), response=response)
-        variety_of_products = response.css('.breadcrumbs span[itemprop="name"]::text').getall()
+
+        varieties_of_outfits = response.css('.breadcrumbs span[itemprop="name"]::text').getall()
+
         sku_number = response.css('div[itemprop="sku"]::text').get()
-        remove_space = sku_number.replace(' ', '')
-        product_detail = response.css('div.description div.value :not(style)::text').getall()
-        remove_spacing_list = [p.strip() for p in product_detail if p.strip()]
-        cleanup_data_spacing = ''.join(remove_spacing_list).strip(':').strip().strip('"').strip()
-        outfit_detail = w3lib.html.remove_tags(cleanup_data_spacing)
-        loader.add_value('sku', remove_space)
+        sku_number = sku_number.replace(' ', '')
+
+        outfit_detail = response.css('div.description div.value :not(style)::text').getall()
+        outfit_detail = [p.strip() for p in outfit_detail if p.strip()]
+        outfit_detail = ''.join(outfit_detail).strip(':').strip().strip('"').strip()
+        outfit_detail = w3lib.html.remove_tags(outfit_detail)
+
+        loader.add_value('sku', sku_number)
         loader.add_css('product_title', 'span.base::text')
         loader.add_value('product_details', outfit_detail)
         loader.add_value('features', self.extract_features(response))
         loader.add_css('sale_price', 'span[data-price-type=finalPrice]::attr(data-price-amount)')
         loader.add_css('old_price', 'span[data-price-type=oldPrice]::attr(data-price-amount)')
-        loader.add_value('category', variety_of_products[1:-1], Join(' > '))
+        loader.add_value('category', varieties_of_outfits[1:-1], Join(' > '))
         loader.add_value('product_url', response.url)
 
         yield loader.load_item()
