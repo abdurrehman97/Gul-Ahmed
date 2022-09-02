@@ -6,57 +6,51 @@ import w3lib.html
 
 
 class GulAhmedSpider(scrapy.Spider):
-    name = "gulahmed"
+    name = 'gulahmed'
     start_urls = ['https://www.gulahmedshop.com']
 
     def parse(self, response, **kwargs):
-        domain = 'https://www.gulahmedshop.com'
+
         category_list = response.css('div .menu-container li a ::attr(href)').getall()
         for url in category_list:
             if 'http' not in url:
-                url = f"{domain}{url}"
-            yield scrapy.Request(
-                url=url,
-                callback=self.parse_product_categories
-            )
+                yield scrapy.Request(
+                    url=response.urljoin(url),
+                    callback=self.parse_product_categories
+                )
 
     def parse_product_categories(self, response):
-        product_categories = response.css('.product-item-photo::attr(href)').getall()
-        for url in product_categories:
+        product_listing = response.css('.product-item-photo::attr(href)').getall()
+        for url in product_listing:
             yield scrapy.Request(
-                url,callback=self.parse_product_fields
+                url,callback=self.parse_product
             )
-        pagination = response.css('.products + .toolbar .pages-items:not(.mobile-show) .next:not(.jump)::attr(href)').get()
-        if pagination:
+        next_page_url = response.css('.products + .toolbar .pages-items:not(.mobile-show) .next:not(.jump)::attr(href)').get()
+        if next_page_url:
             yield scrapy.Request(
-            pagination, callback=self.parse_product_categories
-        )
+                next_page_url, callback=self.parse_product_categories
+            )
 
+    def parse_product(self, response):
 
-    def parse_product_fields(self, response):
+        loader = ItemLoader(item=GulahmadItem(), response=response)
+        variety_of_products = response.css('.breadcrumbs span[itemprop="name"]::text').getall()
+        sku_number = response.css('div[itemprop="sku"]::text').get()
+        remove_space = sku_number.replace(' ', '')
+        product_detail = response.css('div.description div.value :not(style)::text').getall()
+        remove_spacing_list = [p.strip() for p in product_detail if p.strip()]
+        cleanup_data_spacing = ''.join(remove_spacing_list).strip(':').strip().strip('"').strip()
+        outfit_detail = w3lib.html.remove_tags(cleanup_data_spacing)
+        loader.add_value('sku', remove_space)
+        loader.add_css('product_title', 'span.base::text')
+        loader.add_value('product_details', outfit_detail)
+        loader.add_value('features', self.extract_features(response))
+        loader.add_css('sale_price', 'span[data-price-type=finalPrice]::attr(data-price-amount)')
+        loader.add_css('old_price', 'span[data-price-type=oldPrice]::attr(data-price-amount)')
+        loader.add_value('category', variety_of_products[1:-1], Join(' > '))
+        loader.add_value('product_url', response.url)
 
-        l = ItemLoader(item=GulahmadItem(), response=response)
-
-        category = response.css('.breadcrumbs span[itemprop="name"]::text').getall()
-
-        space = response.css('div[itemprop="sku"]::text').get()
-        sku_number = space.replace(' ', '')
-
-        proc_detail = response.css('div.description div.value :not(style)::text').getall()
-        product_strip = [p.strip() for p in proc_detail if p.strip()]
-        convert_string = ''.join(product_strip).strip(':').strip().strip('"').strip()
-        product_detail = w3lib.html.remove_tags(convert_string)
-
-        l.add_value('sku', sku_number)
-        l.add_css('product_title', 'span.base::text')
-        l.add_value('product_details', product_detail)
-        l.add_value('features', self.extract_features(response))
-        l.add_css('sale_price', 'span[data-price-type=finalPrice]::attr(data-price-amount)')
-        l.add_css('old_price', 'span[data-price-type=oldPrice]::attr(data-price-amount)')
-        l.add_value('category', category[1:-1], Join(' > '))
-        l.add_value('product_url', response.url)
-
-        yield l.load_item()
+        yield loader.load_item()
 
     def extract_features(self, response):
         features = {}
